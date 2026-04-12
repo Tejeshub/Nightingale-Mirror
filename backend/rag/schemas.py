@@ -1,10 +1,10 @@
 from pydantic import BaseModel
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 
 class RagCitation(BaseModel):
     document: str
-    page: Optional[int] = None
+    page: Optional[Union[int, str]] = None
     excerpt: str
     source: Optional[str] = None
     table_type: Optional[str] = None

@@ -1,5 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
+
 from models import AskRequest, AskResponse, AskCitation, RetrievedChunk, EquityResearchRequest, EquityResearchResponse
 from agents.ingestion_agent import run_ingestion
 from agents.guidance_tracker import track_guidance
@@ -9,15 +15,63 @@ from agents.alt_debater import alt_debate
 from agents.coordinator import debate_coordinator
 from agents.comparator import compare_companies
 from agents.qa_agent import answer_with_citations
+from agents.comparison_agent import ComparisonAgent
+from models import AskRequest, AskResponse, AskCitation, RetrievedChunk, EquityResearchRequest, EquityResearchResponse, WatchlistToggleRequest, ComparisonRequest
 from rag import answer_with_rag
 from scraper import ScreenerScraper
-from earnings_scraper import EarningsScraper
-from storage.structured_store import engine as db_engine
-from storage.semantic_store import client as chroma_client
+from sqlalchemy import update, select
+from storage.structured_store import engine as db_engine, companies, financials_quarterly, financials_yearly
 import asyncio
 
 app = FastAPI(title="Equity Research AI Agent", description="Multi-agent debate system for Indian equities")
 app.add_middleware(CORSMiddleware, allow_origins=["*"])
+
+comp_agent = ComparisonAgent()
+
+@app.post("/compare")
+async def compare_companies_api(request: ComparisonRequest):
+    print(f"compare: received request for {request.tickers}")
+    try:
+        result = await comp_agent.get_comparison(request.tickers, request.metrics, request.period)
+        return result
+    except Exception as e:
+        print(f"compare: ERROR - {str(e)}")
+        return {"error": str(e)}
+
+@app.post("/watchlist/toggle")
+async def toggle_watchlist(request: WatchlistToggleRequest):
+    print(f"watchlist/toggle: {request.ticker} set to {request.is_watchlisted}")
+    with db_engine.begin() as conn:
+        # Check if company exists in companies table
+        check_stmt = select(companies.c.id).where(companies.c.ticker == request.ticker)
+        existing = conn.execute(check_stmt).fetchone()
+        
+        if existing:
+            stmt = update(companies).where(companies.c.ticker == request.ticker).values(
+                is_watchlisted=request.is_watchlisted
+            )
+            conn.execute(stmt)
+        else:
+            # If not in table, we might need a basic entry
+            from sqlalchemy import insert
+            import uuid
+            stmt = insert(companies).values(
+                id=str(uuid.uuid4()),
+                name=request.ticker, # Placeholder as name
+                ticker=request.ticker,
+                is_watchlisted=request.is_watchlisted
+            )
+            conn.execute(stmt)
+            
+    return {"status": "success", "ticker": request.ticker, "is_watchlisted": request.is_watchlisted}
+
+@app.get("/watchlist")
+async def get_watchlist():
+    print("watchlist: fetching all")
+    with db_engine.connect() as conn:
+        stmt = select(companies).where(companies.c.is_watchlisted == True)
+        result = conn.execute(stmt).fetchall()
+        return [{"ticker": row.ticker, "name": row.name, "sector": row.sector} for row in result]
 
 def scrape_screener_data(company_name: str, ticker: str = None):
     """

@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, String, Float, Integer, DateTime, Text, MetaData, Table, insert, select
+from sqlalchemy import create_engine, Column, String, Float, Integer, DateTime, Text, MetaData, Table, insert, select, Boolean
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import uuid
@@ -9,11 +9,35 @@ SessionLocal = sessionmaker(bind=engine)
 metadata = MetaData()
 
 # Define tables (will be created by init_db.py)
+companies = Table(
+    "companies", metadata,
+    Column("id", String, primary_key=True, default=lambda: str(uuid.uuid4())),
+    Column("name", String, nullable=False),
+    Column("ticker", String, unique=True, nullable=False),
+    Column("sector", String),
+    Column("is_watchlisted", Boolean, default=False),
+    Column("last_scraped_at", DateTime),
+    Column("created_at", DateTime, default=datetime.now)
+)
+
 financials_quarterly = Table(
     "financials_quarterly", metadata,
     Column("id", String, primary_key=True, default=lambda: str(uuid.uuid4())),
     Column("company_name", String, nullable=False),
     Column("quarter", String, nullable=False),
+    Column("metric_name", String, nullable=False),
+    Column("metric_value", Float),
+    Column("unit", String),
+    Column("source_document_id", String),
+    Column("confidence", Float, default=1.0),
+    Column("created_at", DateTime, default=datetime.now)
+)
+
+financials_yearly = Table(
+    "financials_yearly", metadata,
+    Column("id", String, primary_key=True, default=lambda: str(uuid.uuid4())),
+    Column("company_name", String, nullable=False),
+    Column("year", String, nullable=False),
     Column("metric_name", String, nullable=False),
     Column("metric_value", Float),
     Column("unit", String),

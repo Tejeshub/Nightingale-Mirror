@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Union, Literal
 from datetime import datetime
 
 class CompanyInput(BaseModel):
@@ -7,6 +7,16 @@ class CompanyInput(BaseModel):
     screener_id: Optional[str] = None
     ir_page_url: Optional[str] = None
     sector: str
+    is_watchlisted: bool = False
+
+class WatchlistToggleRequest(BaseModel):
+    ticker: str
+    is_watchlisted: bool
+
+class ComparisonRequest(BaseModel):
+    tickers: List[str]
+    metrics: Optional[List[str]] = ["Sales", "Net Profit", "Operating Profit"]
+    period: Literal["quarterly", "yearly", "both"] = "both"
 
 class EquityResearchRequest(BaseModel):
     companies: List[CompanyInput]
@@ -15,7 +25,7 @@ class EquityResearchRequest(BaseModel):
 
 class SourceCitation(BaseModel):
     document: str
-    page: Optional[int] = None
+    page: Optional[Union[int, str]] = None
     excerpt: str
 
 class DimensionScore(BaseModel):
@@ -62,7 +72,7 @@ class AskRequest(BaseModel):
 
 class AskCitation(BaseModel):
     document: str
-    page: Optional[int] = None
+    page: Optional[Union[int, str]] = None
     excerpt: str = ""
     source: Optional[str] = None
     table_type: Optional[str] = None

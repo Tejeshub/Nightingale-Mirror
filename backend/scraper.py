@@ -204,9 +204,11 @@ class ScreenerScraper:
         # 2. Insert metrics to PostgreSQL if db_engine provided
         if self.db_engine and metrics_records:
             try:
-                db_result = batch_insert_financial_metrics(self.db_engine, metrics_records)
+                # Annual tables go to financials_yearly (anything but quarterly_results)
+                is_yearly = table_name != "quarterly_results"
+                db_result = batch_insert_financial_metrics(self.db_engine, metrics_records, is_yearly=is_yearly)
                 result["db_result"] = db_result
-                print(f"✅ Inserted {db_result['inserted']} metrics to PostgreSQL")
+                print(f"✅ Inserted {db_result['inserted']} metrics to PostgreSQL (is_yearly={is_yearly})")
             except Exception as e:
                 print(f"❌ PostgreSQL insert error: {str(e)}")
                 result["db_result"] = {"error": str(e)}
@@ -245,6 +247,16 @@ class ScreenerScraper:
         
         # Insert tables to DB and ChromaDB
         print("Inserting tables to database...")
+        quarterly_results = self.extract_quarterly_results(soup)
+        profit_loss = self.extract_annual_financials(soup, "profit-loss")
+        balance_sheet = self.extract_annual_financials(soup, "balance-sheet")
+        cash_flow = self.extract_annual_financials(soup, "cash-flow")
+        ratios = self.extract_annual_financials(soup, "ratios")
+        
+        # Insert tables to DB and ChromaDB
+        print("Inserting tables to database...")
+        # Use a new internal flag for _insert_table_to_db to tell it which table to use
+        # This requires updating _insert_table_to_db signature, but we can also rely on table_name
         quarterly_insert = self._insert_table_to_db(quarterly_results, "quarterly_results")
         profit_loss_insert = self._insert_table_to_db(profit_loss, "profit_loss")
         balance_sheet_insert = self._insert_table_to_db(balance_sheet, "balance_sheet")

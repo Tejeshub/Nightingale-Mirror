@@ -4,15 +4,17 @@ from rag.schemas import RagCitation, RagRetrievedChunk
 
 
 def _safe_page(value):
+    if value is None:
+        return None
     try:
         return int(value)
     except (TypeError, ValueError):
-        return None
+        return str(value)
 
 
 def citations_from_chunks(chunks: List[RagRetrievedChunk], max_citations: int = 5) -> List[RagCitation]:
     citations: List[RagCitation] = []
-    seen: set[Tuple[str, int | None, str | None]] = set()
+    seen: set[Tuple[str, int | str | None, str | None]] = set()
 
     for chunk in chunks:
         meta = chunk.metadata or {}
