@@ -15,9 +15,24 @@ from earnings_scraper import EarningsScraper
 from storage.structured_store import engine as db_engine
 from storage.semantic_store import client as chroma_client
 import asyncio
+import os
 
 app = FastAPI(title="Equity Research AI Agent", description="Multi-agent debate system for Indian equities")
-app.add_middleware(CORSMiddleware, allow_origins=["*"])
+
+# ---------- CORS Configuration (Updated) ----------
+# Read allowed origins from environment variable (comma-separated)
+# Example: ALLOWED_ORIGINS=https://your-frontend.vercel.app,http://localhost:3000
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000")
+allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,          # ✅ Restrict to specific origins
+    allow_credentials=True,                # Allow cookies/auth headers if needed
+    allow_methods=["*"],                   # Allow all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],                   # Allow all headers
+)
+# ------------------------------------------------
 
 def scrape_screener_data(company_name: str, ticker: str = None):
     """
